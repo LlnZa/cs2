@@ -1,31 +1,23 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-import os  # <-- добавляем импорт os
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
+import os
 
 app = FastAPI()
 
-HTML_CONTENT = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>CS2 Esports WebApp</title>
-</head>
-<body>
-    <h1>Список ближайших матчей</h1>
-    <ul>
-        <li>G2 vs NAVI - 10:00 12.02.2025</li>
-        <li>FaZe vs Vitality - 14:00 12.02.2025</li>
-        <li>ENCE vs Heroic - 18:00 12.02.2025</li>
-    </ul>
-</body>
-</html>
-"""
+# Подключаем папку со статическими файлами (CSS, JS, изображения)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
-async def read_root():
-    return HTMLResponse(content=HTML_CONTENT, status_code=200)
+# Подключаем папку с HTML-шаблонами
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))  # <-- теперь os определён
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
