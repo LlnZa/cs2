@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
@@ -24,8 +26,7 @@ HTML_CONTENT = """
 async def read_root():
     return HTMLResponse(content=HTML_CONTENT, status_code=200)
 
-if __name__ == "__main__":
-    import os
+if __name__ == "__main__":    
 port = int(os.getenv("PORT", 8000))
 uvicorn.run(app, host="0.0.0.0", port=port)
 
