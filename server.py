@@ -1,21 +1,58 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.requests import Request
+from fastapi.staticfiles import StaticFiles
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 
+# Настройки подключения к БД
+DB_CONFIG = {
+    "dbname": "cs2_esports",
+    "user": "postgres",
+    "password": "postgres",
+    "host": "localhost",
+    "port": "5432"
+}
+
+def get_db_connection():
+    """
+    Возвращает соединение с базой данных с использованием RealDictCursor,
+    чтобы каждая строка была словарём (ключи – названия столбцов).
+    """
+    conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+    return conn
+
+def get_live_matches():
+    """
+    Выбирает из таблицы matches только live-матчи (например, где status = 'running').
+    При необходимости можно расширить условие.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = "SELECT * FROM matches WHERE status = 'running';"
+    cur.execute(query)
+    matches = cur.fetchall()
+    cur.close()
+    conn.close()
+    return matches
+
+# Создаём экземпляр FastAPI
 app = FastAPI()
 
-# Подключаем папку со статическими файлами (CSS, JS, изображения)
+# Подключаем статические файлы (например, для CSS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Подключаем папку с HTML-шаблонами
+# Подключаем шаблоны из папки templates
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def read_root(request: Request):
+    """
+    Главный маршрут: получает live-матчи из базы и передаёт их в шаблон index.html.
+    """
+    matches = get_live_matches()
+    return templates.TemplateResponse("index.html", {"request": request, "matches": matches})
 
 if __name__ == "__main__":
     import uvicorn
