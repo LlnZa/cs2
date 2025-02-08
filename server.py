@@ -7,20 +7,20 @@ from psycopg2.extras import RealDictCursor
 import os
 
 # Настройки подключения к БД
-DB_CONFIG = {
-    "dbname": "cs2_esports",
-    "user": "postgres",
-    "password": "postgres",
-    "host": "localhost",
-    "port": "5432"
-}
-
 def get_db_connection():
-    """
-    Возвращает соединение с базой данных с использованием RealDictCursor,
-    чтобы каждая строка была словарём (ключи – названия столбцов).
-    """
-    conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+    else:
+        # Локальные настройки для разработки
+        conn = psycopg2.connect(
+            dbname="cs2_esports",
+            user="postgres",
+            password="postgres",
+            host="localhost",
+            port="5432",
+            cursor_factory=RealDictCursor
+        )
     return conn
 
 def get_live_matches():
