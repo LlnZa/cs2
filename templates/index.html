@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CS2 Esports WebApp</title>
+    <meta charset="UTF-8">
+    <title>Live Matches</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Список ближайших матчей</h1>
-    <ul>
-        <li>G2 vs NAVI - 10:00 12.02.2025</li>
-        <li>FaZe vs Vitality - 14:00 12.02.2025</li>
-        <li>ENCE vs Heroic - 18:00 12.02.2025</li>
-    </ul>
+    <h1>Live Matches</h1>
+    {% if matches %}
+        <ul>
+        {% for match in matches %}
+            <li>
+                <h2>{{ match.name }}</h2>
+                <p><strong>Статус:</strong> {{ match.status }}</p>
+                <p><strong>Запланировано на:</strong> {{ match.scheduled_at }}</p>
+                <p><strong>Начало матча:</strong> {{ match.begin_at }}</p>
+                <p><strong>Турнир ID:</strong> {{ match.tournament_id }}</p>
+                <p><strong>Лига ID:</strong> {{ match.league_id }}</p>
+                <p><strong>Серия ID:</strong> {{ match.serie_id }}</p>
+                <p><strong>Количество карт:</strong> {{ match.number_of_games }}</p>
+                <p><strong>ID команды 1:</strong> {{ match.team1_id }} | <strong>ID команды 2:</strong> {{ match.team2_id }}</p>
+                <!-- Если у вас будут ссылки на лого, можно добавить тэг <img src="..."> -->
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Нет текущих live-матчей.</p>
+    {% endif %}
 </body>
 </html>
-
