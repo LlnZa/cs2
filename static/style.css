@@ -22,6 +22,7 @@ h1 {
     margin-bottom: 20px;
     background: #fff;
     border-radius: 8px;
+    text-align: center;
 }
 
 .group-date {
@@ -35,8 +36,17 @@ h1 {
     margin-bottom: 10px;
 }
 
-/* Горизонтальный скроллер дат и фиксированный футер описаны в шаблоне через встроенные стили */
+.match-teams img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin: 0 10px;
+    border-radius: 50%;
+}
 
+/* Горизонтальный скроллер дат и футер описаны в index.html (с дополнительными встроенными стилями) */
+
+/* Адаптация под мобильные устройства */
 @media (max-width: 600px) {
     body {
         margin: 10px;
@@ -53,6 +63,7 @@ h1 {
     }
 }
 
+/* Тёмный режим */
 @media (prefers-color-scheme: dark) {
     body {
         background: #1e1e1e;
