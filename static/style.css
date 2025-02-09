@@ -7,6 +7,8 @@ body {
 
 h1 {
     color: #333;
+    text-align: center;
+    margin-bottom: 30px;
 }
 
 .match-list {
@@ -16,10 +18,39 @@ h1 {
 
 .match-container {
     border: 1px solid #ddd;
-    padding: 10px;
+    padding: 15px;
     margin-bottom: 20px;
-    text-align: center;
     background: #fff;
+    border-radius: 8px;
+}
+
+.group-date {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 30px 0 10px 0;
+    text-align: center;
+}
+
+.match-header, .match-teams, .match-schedule {
+    margin-bottom: 10px;
+}
+
+/* Горизонтальный скроллер дат и фиксированный футер описаны в шаблоне через встроенные стили */
+
+@media (max-width: 600px) {
+    body {
+        margin: 10px;
+    }
+    .match-container {
+        padding: 10px;
+        margin-bottom: 15px;
+    }
+    .group-date {
+        font-size: 18px;
+    }
+    .match-header, .match-teams, .match-schedule {
+        font-size: 14px;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,7 +58,7 @@ h1 {
         background: #1e1e1e;
         color: #e0e0e0;
     }
-    h1 {
+    h1, .group-date {
         color: #e0e0e0;
     }
     .match-container {
