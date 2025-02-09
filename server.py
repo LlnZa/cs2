@@ -13,13 +13,11 @@ from fastapi.staticfiles import StaticFiles
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# =======================
-# 1. Настройки подключения к БД
-# =======================
+# 1. Настройки подключения к базе данных
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        # Используем URL из переменной окружения (на Render)
+        # Используем URL из переменной окружения (например, Render External Database URL)
         conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
     else:
         # Локальные настройки для разработки
@@ -33,9 +31,7 @@ def get_db_connection():
         )
     return conn
 
-# =======================
-# 2. Функции для работы с API
-# =======================
+# 2. Настройки API
 API_TOKEN = os.getenv("API_TOKEN", "o9lfBugxpaB8acOZJusXrSUDtFGCfqtXiMe0nTOkC3LagsGDjRA")
 API_BASE_URL = "https://api.pandascore.co/csgo"
 
@@ -61,11 +57,9 @@ def parse_datetime(dt_str):
         print(f"Ошибка преобразования даты {dt_str}: {e}")
         return None
 
-# =======================
 # 3. Функции вставки данных в таблицы
-# =======================
+
 def insert_team(team):
-    """Вставляет данные о команде в таблицу teams."""
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -91,7 +85,6 @@ def insert_team(team):
         conn.close()
 
 def insert_league(league):
-    """Вставляет данные о лиге в таблицу leagues."""
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -115,7 +108,6 @@ def insert_league(league):
         conn.close()
 
 def insert_series(series):
-    """Вставляет данные о серии (турнирной серии) в таблицу series."""
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -147,10 +139,6 @@ def insert_series(series):
         conn.close()
 
 def insert_match(match):
-    """
-    Вставляет данные о матче в таблицу matches.
-    Поле videogame_title исключено, так как все матчи по одной игре.
-    """
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -223,13 +211,59 @@ def insert_match(match):
         cur.close()
         conn.close()
 
-# =======================
 # 4. Функция обновления live-матчей из API
-# =======================
-def get_live_matches():
-    """
-    Выбирает из таблицы matches только live-матчи с объединением необходимых таблиц.
-    """
+def process_live_matches():
+    print("Получение live-матчей из API...")
+    live_matches = fetch_api("/matches/running")
+    if live_matches is None:
+        print("Нет данных по live-матчам.")
+        return
+    for match in live_matches:
+        # Обработка команд
+        opponents = match.get("opponents", [])
+        for opp in opponents:
+            team = opp.get("opponent")
+            if team:
+                insert_team(team)
+        # Обработка лиги (если есть)
+        league = match.get("league")
+        if league:
+            insert_league(league)
+        # Обработка серии (если есть)
+        serie = match.get("serie")
+        if serie:
+            insert_series(serie)
+        # Вставка матча
+        insert_match(match)
+        print(f"Матч {match.get('id')} ({match.get('name')}) обработан.")
+
+# 5. Планировщик APScheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(process_live_matches, 'interval', minutes=15)
+
+# 6. Создание экземпляра FastAPI (создаём только один раз)
+app = FastAPI()
+
+# Подключаем статические файлы и шаблоны
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# 7. События старта и остановки приложения
+@app.on_event("startup")
+def startup_event():
+    print("Запуск планировщика обновления live-матчей...")
+    scheduler.start()
+    # Можно сразу обновить данные при старте
+    process_live_matches()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    print("Остановка планировщика...")
+    scheduler.shutdown()
+
+# 8. Основной маршрут для WebApp
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -239,7 +273,7 @@ def get_live_matches():
                 WHEN m.number_of_games = 1 THEN 'bo1'
                 WHEN m.number_of_games = 3 THEN 'bo3'
                 WHEN m.number_of_games = 5 THEN 'bo5'
-                ELSE CONCAT('bo', m.number_of_games) 
+                ELSE CONCAT('bo', m.number_of_games)
             END AS bo_format,
             to_char(m.scheduled_at, 'YYYY-MM-DD') AS match_date,
             to_char(m.scheduled_at, 'HH24:MI') AS match_time,
@@ -257,44 +291,6 @@ def get_live_matches():
         LEFT JOIN teams t2 ON m.team2_id = t2.team_id
         WHERE m.status = 'running';
     """
-    cur.execute(query)
-    matches = cur.fetchall()
-    cur.close()
-    conn.close()
-    return matches
-
-
-# =======================
-# 5. Планировщик APScheduler
-# =======================
-scheduler = BackgroundScheduler()
-scheduler.add_job(process_live_matches, 'interval', minutes=15)
-
-# =======================
-# 6. FastAPI приложение
-# =======================
-app = FastAPI()
-
-# Подключаем статические файлы и шаблоны
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-@app.on_event("startup")
-def startup_event():
-    print("Запуск планировщика обновления live-матчей...")
-    scheduler.start()
-    process_live_matches()
-
-@app.on_event("shutdown")
-def shutdown_event():
-    print("Остановка планировщика...")
-    scheduler.shutdown()
-
-@app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    query = "SELECT * FROM matches WHERE status = 'running';"
     cur.execute(query)
     matches = cur.fetchall()
     cur.close()
