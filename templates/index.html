@@ -2,10 +2,9 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Live Matches</title>
+    <title>Матчи CS:GO</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        /* Пример простого стиля для мигающего красного кружка */
         .live-indicator {
             display: inline-block;
             width: 10px;
@@ -13,59 +12,91 @@
             background-color: red;
             border-radius: 50%;
             animation: blink 1s infinite;
+            margin-right: 5px;
         }
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .match-header div {
+            flex: 1;
+            text-align: center;
+        }
+        .match-teams {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .match-teams img {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>Live Matches</h1>
+    <h1>Матчи</h1>
     {% if matches %}
-        <ul>
+        <ul class="match-list">
         {% for match in matches %}
-            <li>
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <!-- Количество карт, например "bo3" -->
-                    <div>{{ match.bo_format }}</div>
-                    <!-- Название серии, например "Katowice 2025" -->
-                    <div>{{ match.series_full_name }}</div>
-                    <!-- Индикатор Live -->
-                    {% if match.live_supported %}
-                        <div><span class="live-indicator"></span> Live</div>
-                    {% else %}
-                        <div>off</div>
-                    {% endif %}
+            <li class="match-container">
+                <div class="match-header">
+                    <div class="bo-format">{{ match.bo_format }}</div>
+                    <div class="series">{{ match.series_full_name }}</div>
+                    <div class="status">
+                        {% if match.live_supported %}
+                            <span class="live-indicator"></span>Live
+                        {% else %}
+                            off
+                        {% endif %}
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center;">
-                    <!-- Логотип и имя первой команды -->
+                <div class="match-teams">
                     {% if match.team1_logo %}
                         <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}" width="50" height="50">
                     {% endif %}
-                    <span>{{ match.team1_name }}</span>
-                    <!-- Счет -->
-                    {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
-                        <span style="margin: 0 10px;">{{ match.final_score_team1 }} vs {{ match.final_score_team2 }}</span>
-                    {% else %}
-                        <span style="margin: 0 10px;">- vs -</span>
-                    {% endif %}
-                    <!-- Имя и логотип второй команды -->
-                    <span>{{ match.team2_name }}</span>
+                    <span class="team-name">{{ match.team1_name }}</span>
+                    <span class="score">
+                        {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
+                            {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
+                        {% else %}
+                            - vs -
+                        {% endif %}
+                    </span>
+                    <span class="team-name">{{ match.team2_name }}</span>
                     {% if match.team2_logo %}
                         <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}" width="50" height="50">
                     {% endif %}
                 </div>
-                <div>
-                    <!-- Отображение запланированного времени: дата и время на разных строках -->
-                    <div>{{ match.match_date }}</div>
-                    <div>{{ match.match_time }}</div>
+                <!-- Если требуется выводить дату и время отдельно, можно добавить блок ниже -->
+                <!--
+                <div class="match-schedule">
+                    <div class="match-date">{{ match.match_date }}</div>
+                    <div class="match-time">{{ match.match_time }}</div>
                 </div>
+                -->
             </li>
         {% endfor %}
         </ul>
     {% else %}
-        <p>Нет текущих live-матчей.</p>
+        <p>Нет матчей за последние 10 дней.</p>
     {% endif %}
+
+    <!-- Горизонтальный скроллер дат -->
+    <div id="date-scroller">
+        <div class="dates">
+            {% for day in date_list %}
+                <div class="date-item">
+                    <div class="day-number">{{ day.day }}</div>
+                    <div class="day-name">{{ day.short_name }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 </body>
 </html>
