@@ -27,9 +27,15 @@ h1 {
     text-align: center;
 }
 
-/* Фон для live-матчей */
+/* Фон для live-матчей (плавное мигание фона можно реализовать через анимацию, пример ниже) */
 .live-match {
-    background: #e0f7fa; /* светло-голубой фон для live-матчей */
+    background: #e0f7fa;
+    animation: livePulse 2s infinite;
+}
+@keyframes livePulse {
+    0% { background-color: #e0f7fa; }
+    50% { background-color: #d0f0f5; }
+    100% { background-color: #e0f7fa; }
 }
 
 /* Заголовок группы (дата) */
@@ -67,8 +73,29 @@ h1 {
     align-items: center;
     margin: 0 10px;
 }
+
+/* Для ПК-версии: различное расположение левой и правой команды */
+.team-left {
+    /* Левый блок: логотип сверху, имя снизу */
+}
+.team-right {
+    /* Правый блок: для ПК – имя сверху, логотип снизу */
+}
+@media (min-width: 601px) {
+    .team-right {
+        flex-direction: column-reverse;
+    }
+}
+
+/* Для мобильных: одинаковый порядок (логотип сверху, имя снизу) */
+@media (max-width: 600px) {
+    .team-left, .team-right {
+        flex-direction: column;
+    }
+}
+
 .match-teams img {
-    width: 50px; /* уменьшено для мобильных */
+    width: 50px;
     height: 50px;
     object-fit: contain;
     margin-bottom: 5px;
@@ -78,7 +105,7 @@ h1 {
     font-weight: bold;
     margin: 0 5px;
 }
-.match-teams .score {
+.score {
     font-weight: bold;
     font-size: 18px;
     margin: 0 15px;
