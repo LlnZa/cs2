@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # =======================
-# 1. Настройки подключения к БД
+# 1. Подключение к базе данных
 # =======================
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
@@ -62,7 +62,7 @@ def parse_datetime(dt_str):
         return None
 
 # =======================
-# 3. Функции вставки данных в таблицы
+# 3. Функции вставки в таблицы
 # =======================
 def insert_team(team):
     conn = get_db_connection()
@@ -148,23 +148,19 @@ def insert_match(match):
     cur = conn.cursor()
     query = """
         INSERT INTO matches 
-        (match_id, name, status, scheduled_at, original_scheduled_at, begin_at, modified_at,
-         match_type, forfeit, rescheduled, number_of_games, tournament_id, serie_id, league_id, 
+        (match_id, name, status, scheduled_at, original_scheduled_at, 
+         number_of_games, tournament_id, serie_id, league_id, 
          live_supported, live_url, live_opens_at, streams_list,
-         final_score_team1, final_score_team2, live_score_team1, live_score_team2,
-         team1_id, team2_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (match_id) DO NOTHING;
+         final_score_team1, final_score_team2, team1_id, team2_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (match_id) DO UPDATE 
+         SET final_score_team1 = EXCLUDED.final_score_team1,
+             final_score_team2 = EXCLUDED.final_score_team2,
+             status = EXCLUDED.status;
     """
     scheduled_at = parse_datetime(match.get("scheduled_at"))
     original_scheduled_at = parse_datetime(match.get("original_scheduled_at"))
-    begin_at = parse_datetime(match.get("begin_at"))
-    modified_at = parse_datetime(match.get("modified_at"))
-    live = match.get("live", {})
-    live_supported = live.get("supported")
-    live_url = live.get("url")
-    live_opens_at = parse_datetime(live.get("opens_at"))
-    streams_list = json.dumps(match.get("streams_list", []))
+    # Для наших целей время начала не выводим, оставляем только запланированное время
     results = match.get("results")
     if results and isinstance(results, list) and len(results) >= 2:
         final_score_team1 = results[0].get("score")
@@ -172,37 +168,33 @@ def insert_match(match):
     else:
         final_score_team1 = None
         final_score_team2 = None
-    live_score_team1 = None
-    live_score_team2 = None
+
     opponents = match.get("opponents", [])
     team1_id = opponents[0]["opponent"].get("id") if len(opponents) > 0 else None
     team2_id = opponents[1]["opponent"].get("id") if len(opponents) > 1 else None
     serie_obj = match.get("serie")
     serie_id = serie_obj.get("id") if serie_obj else None
 
+    live = match.get("live", {})
+    live_supported = live.get("supported")
+
     data = (
         match.get("id"),
-        match.get("name"),
+        # Вместо match.name можно сформировать строку вида "Team1 vs Team2", если оба соперника есть
+        f"{opponents[0]['opponent'].get('name', '-') if len(opponents)>0 else '-'} vs {opponents[1]['opponent'].get('name', '-') if len(opponents)>1 else '-'}",
         match.get("status"),
         scheduled_at,
         original_scheduled_at,
-        begin_at,
-        modified_at,
-        match.get("match_type"),
-        match.get("forfeit"),
-        match.get("rescheduled"),
         match.get("number_of_games"),
         match.get("tournament_id"),
         serie_id,
         match.get("league_id"),
         live_supported,
-        live_url,
-        live_opens_at,
-        streams_list,
+        live.get("url"),
+        parse_datetime(live.get("opens_at")),
+        json.dumps(match.get("streams_list", [])),
         final_score_team1,
         final_score_team2,
-        live_score_team1,
-        live_score_team2,
         team1_id,
         team2_id
     )
@@ -217,7 +209,35 @@ def insert_match(match):
         conn.close()
 
 # =======================
-# 4. Функция обновления live-матчей из API
+# 4a. Функция обновления past-матчей из API (для завершённых матчей)
+# =======================
+def process_past_matches():
+    print("Получение past-матчей из API...")
+    past_matches = fetch_api("/matches/past")
+    if past_matches is None:
+        print("Нет данных по past-матчам.")
+        return
+    for match in past_matches:
+        # Обработка команд
+        opponents = match.get("opponents", [])
+        for opp in opponents:
+            team = opp.get("opponent")
+            if team:
+                insert_team(team)
+        # Обработка лиги
+        league = match.get("league")
+        if league:
+            insert_league(league)
+        # Обработка серии
+        serie = match.get("serie")
+        if serie:
+            insert_series(serie)
+        # Вставка матча
+        insert_match(match)
+        print(f"Past-матч {match.get('id')} ({match.get('name')}) обработан.")
+
+# =======================
+# 4b. Функция обновления live-матчей из API
 # =======================
 def process_live_matches():
     print("Получение live-матчей из API...")
@@ -226,29 +246,31 @@ def process_live_matches():
         print("Нет данных по live-матчам.")
         return
     for match in live_matches:
-        # Обработка команд
         opponents = match.get("opponents", [])
         for opp in opponents:
             team = opp.get("opponent")
             if team:
                 insert_team(team)
-        # Обработка лиги (если есть)
         league = match.get("league")
         if league:
             insert_league(league)
-        # Обработка серии (если есть)
         serie = match.get("serie")
         if serie:
             insert_series(serie)
-        # Вставка матча
         insert_match(match)
-        print(f"Матч {match.get('id')} ({match.get('name')}) обработан.")
+        print(f"Live-матч {match.get('id')} ({match.get('name')}) обработан.")
+
+# =======================
+# 4c. Функция обновления всех матчей
+# =======================
+def process_all_matches():
+    process_live_matches()
+    process_past_matches()
 
 # =======================
 # 5. Генерация списка дат (последние 10 дней)
 # =======================
 def generate_date_list():
-    """Возвращает список дат за последние 10 дней с полями day (число) и short_name (аббревиатура дня недели)."""
     today = datetime.today().date()
     date_list = []
     days_map = {
@@ -272,6 +294,7 @@ def generate_date_list():
 def get_display_matches():
     """
     Выбирает необходимые для отображения данные матчей за последние 10 дней.
+    Отбираются как live, так и finished матчи.
     """
     conn = get_db_connection()
     cur = conn.cursor()
@@ -284,6 +307,8 @@ def get_display_matches():
                 WHEN m.number_of_games = 5 THEN 'bo5'
                 ELSE 'bo' || m.number_of_games
             END AS bo_format,
+            to_char(m.scheduled_at, 'YYYY-MM-DD') AS match_date,
+            to_char(m.scheduled_at, 'HH24:MI') AS match_time,
             s.full_name AS series_full_name,
             t1.name AS team1_name,
             t1.image_url AS team1_logo,
@@ -291,6 +316,7 @@ def get_display_matches():
             t2.image_url AS team2_logo,
             m.final_score_team1,
             m.final_score_team2,
+            m.status,
             m.live_supported
         FROM matches m
         LEFT JOIN series s ON m.serie_id = s.serie_id
@@ -306,13 +332,13 @@ def get_display_matches():
     return matches
 
 # =======================
-# 7. Планировщик обновления (каждые 1 минут)
+# 7. Планировщик обновления (каждые 15 минут)
 # =======================
 scheduler = BackgroundScheduler()
-scheduler.add_job(process_live_matches, 'interval', minutes=1)
+scheduler.add_job(process_all_matches, 'interval', minutes=15)
 
 # =======================
-# 8. Создание FastAPI приложения, подключение шаблонов и статики
+# 8. FastAPI приложение, статика, шаблоны
 # =======================
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -320,10 +346,10 @@ templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 def startup_event():
-    print("Запуск планировщика обновления live-матчей...")
+    print("Запуск планировщика обновления матчей...")
     scheduler.start()
-    # При старте сразу обновляем данные
-    process_live_matches()
+    # Обновляем данные при старте
+    process_all_matches()
 
 @app.on_event("shutdown")
 def shutdown_event():
