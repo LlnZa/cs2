@@ -175,7 +175,6 @@ def insert_match(match):
     live_supported = live.get("supported")
     data = (
         match.get("id"),
-        # Формируем строку вида "Team1 vs Team2" (хотя в дальнейшем это не выводится, можно использовать другое значение)
         f"{opponents[0]['opponent'].get('name','-')} vs {opponents[1]['opponent'].get('name','-')}",
         match.get("status"),
         scheduled_at,
@@ -274,7 +273,6 @@ def generate_date_list():
             "month": d.strftime("%m"),
             "short_name": short_name
         })
-    # Сортируем по дате по убыванию (т.е. текущая сверху)
     date_list.sort(key=lambda x: x["full_date"], reverse=True)
     return date_list
 
@@ -292,9 +290,8 @@ def get_display_matches_grouped(selected_date: str = None):
                 WHEN m.number_of_games = 5 THEN 'bo5'
                 ELSE 'bo' || m.number_of_games
             END AS bo_format,
-            -- Если матч в лайве, принудительно назначаем сегодняшнюю дату
             CASE 
-                WHEN m.live_supported AND m.status = 'running' THEN to_char(current_date, 'YYYY-MM-DD')
+                WHEN LOWER(m.status) = 'running' THEN to_char(current_date, 'YYYY-MM-DD')
                 ELSE to_char(m.scheduled_at, 'YYYY-MM-DD')
             END AS match_date,
             to_char(m.scheduled_at, 'HH24:MI') AS match_time,
@@ -306,8 +303,8 @@ def get_display_matches_grouped(selected_date: str = None):
             m.final_score_team1,
             m.final_score_team2,
             CASE 
-                WHEN m.live_supported AND m.status = 'running' THEN 'Live'
-                WHEN m.status = 'finished' THEN 'Завершён'
+                WHEN LOWER(m.status) = 'running' THEN 'Live'
+                WHEN LOWER(m.status) = 'finished' THEN 'Завершён'
                 ELSE m.status
             END AS display_status
         FROM matches m
@@ -317,12 +314,14 @@ def get_display_matches_grouped(selected_date: str = None):
         WHERE m.scheduled_at >= CURRENT_DATE - INTERVAL '10 days'
     """
     params = []
-    if selected_date:
-        query += " AND to_char(m.scheduled_at, 'YYYY-MM-DD') = %s"
-        params.append(selected_date)
+    if not selected_date:
+        # По умолчанию выбираем текущую дату
+        selected_date = datetime.today().strftime("%Y-%m-%d")
+    query += " AND (CASE WHEN LOWER(m.status) = 'running' THEN to_char(current_date, 'YYYY-MM-DD') ELSE to_char(m.scheduled_at, 'YYYY-MM-DD') END) = %s"
+    params.append(selected_date)
     query += """
         ORDER BY 
-            CASE WHEN m.live_supported AND m.status = 'running' THEN 0 ELSE 1 END,
+            CASE WHEN LOWER(m.status) = 'running' THEN 0 ELSE 1 END,
             m.scheduled_at DESC;
     """
     cur.execute(query, tuple(params))
@@ -330,21 +329,19 @@ def get_display_matches_grouped(selected_date: str = None):
     cur.close()
     conn.close()
 
-    # Группировка матчей по дате для отображения
     grouped = {}
     for m in matches:
         date = m.get("match_date")
         if date not in grouped:
             grouped[date] = []
         grouped[date].append(m)
-    # Сортировка групп по дате (текущая дата сверху)
     sorted_grouped = dict(sorted(grouped.items(), reverse=True))
     return sorted_grouped
 
 # =======================
-# 7. Планировщик обновления (каждые 1 минут)
+# 7. Планировщик обновления (каждые 15 минут)
 scheduler = BackgroundScheduler()
-scheduler.add_job(process_all_matches, 'interval', minutes=1)
+scheduler.add_job(process_all_matches, 'interval', minutes=15)
 
 # =======================
 # 8. Создание FastAPI приложения, подключение статики и шаблонов
@@ -357,7 +354,7 @@ templates = Jinja2Templates(directory="templates")
 def startup_event():
     print("Запуск планировщика обновления матчей...")
     scheduler.start()
-    process_all_matches()  # Обновляем данные при старте
+    process_all_matches()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -368,6 +365,9 @@ def shutdown_event():
 def read_root(request: Request, date: str = None):
     grouped_matches = get_display_matches_grouped(selected_date=date)
     date_list = generate_date_list()
+    # Если дата не передана, по умолчанию устанавливаем текущую дату
+    if not date:
+        date = datetime.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("index.html", {
         "request": request, 
         "grouped_matches": grouped_matches, 
