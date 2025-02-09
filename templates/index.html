@@ -44,11 +44,13 @@
                             </div>
                         </div>
                         <div class="match-teams">
-                            {% if match.team1_logo %}
-                                <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}">
-                            {% endif %}
-                            <span class="team-name">{{ match.team1_name }}</span>
-                            <span class="score">
+                            <div class="team-block">
+                                {% if match.team1_logo %}
+                                    <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}">
+                                {% endif %}
+                                <span class="team-name">{{ match.team1_name }}</span>
+                            </div>
+                            <div class="score">
                                 {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
                                     {% if match.display_status == 'Завершён' %}
                                         {% if match.final_score_team1 > match.final_score_team2 %}
@@ -64,11 +66,13 @@
                                 {% else %}
                                     - vs -
                                 {% endif %}
-                            </span>
-                            <span class="team-name">{{ match.team2_name }}</span>
-                            {% if match.team2_logo %}
-                                <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}">
-                            {% endif %}
+                            </div>
+                            <div class="team-block">
+                                <span class="team-name">{{ match.team2_name }}</span>
+                                {% if match.team2_logo %}
+                                    <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}">
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="match-schedule">
                             <div class="match-date">{{ match.match_date }}</div>
@@ -79,16 +83,16 @@
             </ul>
         {% endfor %}
     {% else %}
-        <p>Нет матчей за последние 10 дней.</p>
+        <p>Нет матчей за выбранную дату.</p>
     {% endif %}
 
-    <!-- Фиксированный горизонтальный скроллер дат над навигационным футером -->
+    <!-- Фиксированный горизонтальный скроллер дат (расположен над фиксированным футером) -->
     <div id="date-scroller">
         <div class="dates">
             {% for day in date_list %}
-                {% set active = 'active' if selected_date and selected_date == day.full_date else '' %}
+                {% set active = 'active' if selected_date == day.full_date else '' %}
                 <div class="date-item {{ active }}">
-                    <a href="/?date={{ day.full_date }}" style="text-decoration: none; color: inherit;">
+                    <a href="/?date={{ day.full_date }}">
                         <div class="day-number">{{ day.day }}</div>
                         <div class="day-name">{{ day.short_name }}</div>
                     </a>
