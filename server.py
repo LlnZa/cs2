@@ -57,7 +57,9 @@ API_BASE_URL = "https://api.pandascore.co/csgo"
 def fetch_api(endpoint):
     """Получает данные с API по заданному endpoint."""
     url = f"{API_BASE_URL}{endpoint}"
-    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}"
+    }
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
@@ -79,7 +81,6 @@ def parse_datetime(dt_str):
 # =======================
 # 3. Функции вставки данных в таблицы
 # =======================
-
 def insert_team(team):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -272,7 +273,12 @@ def process_all_matches():
 def save_ratings():
     print("🔄 Загружаем рейтинги с GitHub...")
     rating_api_url = "https://api.github.com/repos/ValveSoftware/counter-strike_regional_standings/contents/live/2025"
-    response = requests.get(rating_api_url)
+    # Добавляем заголовки, необходимые GitHub API
+    headers = {
+        "User-Agent": "cs2-rating-fetcher",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.get(rating_api_url, headers=headers)
     if response.status_code != 200:
         print(f"❌ Ошибка получения списка рейтингов: {response.status_code}")
         return
@@ -287,7 +293,7 @@ def save_ratings():
     if not download_url:
         print("❌ Нет ссылки для скачивания рейтинга.")
         return
-    rating_response = requests.get(download_url)
+    rating_response = requests.get(download_url, headers=headers)
     if rating_response.status_code != 200:
         print(f"❌ Ошибка скачивания рейтингов: {rating_response.status_code}")
         return
@@ -314,8 +320,8 @@ def save_ratings():
         ratings_data.append((team_name, standing, points, roster))
     for team_name, standing, points, roster in ratings_data:
         query = """
-            INSERT INTO ratings (team_name, rank, points, roster)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO ratings (team_name, rank, points, roster, last_updated)
+            VALUES (%s, %s, %s, %s, NOW())
             ON CONFLICT (team_name) DO UPDATE
             SET rank = EXCLUDED.rank,
                 points = EXCLUDED.points,
@@ -418,9 +424,12 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(process_all_matches, 'interval', minutes=1)
 scheduler.add_job(save_ratings, 'interval', minutes=15)
 
+def process_all_matches():
+    process_live_matches()
+    process_past_matches()
+
 # =======================
 # 9. Создание FastAPI приложения, подключение статики и шаблонов
-# =======================
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
