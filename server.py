@@ -160,7 +160,7 @@ def insert_match(match):
     """
     scheduled_at = parse_datetime(match.get("scheduled_at"))
     original_scheduled_at = parse_datetime(match.get("original_scheduled_at"))
-    # Для наших целей время начала не выводим, оставляем только запланированное время
+    # Для отображения на сайте оставляем только запланированное время
     results = match.get("results")
     if results and isinstance(results, list) and len(results) >= 2:
         final_score_team1 = results[0].get("score")
@@ -168,19 +168,16 @@ def insert_match(match):
     else:
         final_score_team1 = None
         final_score_team2 = None
-
     opponents = match.get("opponents", [])
     team1_id = opponents[0]["opponent"].get("id") if len(opponents) > 0 else None
     team2_id = opponents[1]["opponent"].get("id") if len(opponents) > 1 else None
     serie_obj = match.get("serie")
     serie_id = serie_obj.get("id") if serie_obj else None
-
     live = match.get("live", {})
     live_supported = live.get("supported")
-
     data = (
         match.get("id"),
-        # Вместо match.name можно сформировать строку вида "Team1 vs Team2", если оба соперника есть
+        # Формируем строку вида "Team1 vs Team2"
         f"{opponents[0]['opponent'].get('name', '-') if len(opponents)>0 else '-'} vs {opponents[1]['opponent'].get('name', '-') if len(opponents)>1 else '-'}",
         match.get("status"),
         scheduled_at,
@@ -209,7 +206,7 @@ def insert_match(match):
         conn.close()
 
 # =======================
-# 4a. Функция обновления past-матчей из API (для завершённых матчей)
+# 4a. Функция обновления past-матчей (для завершённых матчей)
 # =======================
 def process_past_matches():
     print("Получение past-матчей из API...")
@@ -218,26 +215,21 @@ def process_past_matches():
         print("Нет данных по past-матчам.")
         return
     for match in past_matches:
-        # Обработка команд
-        opponents = match.get("opponents", [])
-        for opp in opponents:
+        for opp in match.get("opponents", []):
             team = opp.get("opponent")
             if team:
                 insert_team(team)
-        # Обработка лиги
         league = match.get("league")
         if league:
             insert_league(league)
-        # Обработка серии
         serie = match.get("serie")
         if serie:
             insert_series(serie)
-        # Вставка матча
         insert_match(match)
         print(f"Past-матч {match.get('id')} ({match.get('name')}) обработан.")
 
 # =======================
-# 4b. Функция обновления live-матчей из API
+# 4b. Функция обновления live-матчей
 # =======================
 def process_live_matches():
     print("Получение live-матчей из API...")
@@ -246,8 +238,7 @@ def process_live_matches():
         print("Нет данных по live-матчам.")
         return
     for match in live_matches:
-        opponents = match.get("opponents", [])
-        for opp in opponents:
+        for opp in match.get("opponents", []):
             team = opp.get("opponent")
             if team:
                 insert_team(team)
@@ -268,7 +259,7 @@ def process_all_matches():
     process_past_matches()
 
 # =======================
-# 5. Генерация списка дат (последние 10 дней)
+# 5. Генерация списка дат (за последние 10 дней)
 # =======================
 def generate_date_list():
     today = datetime.today().date()
@@ -285,17 +276,15 @@ def generate_date_list():
     for i in range(10):
         d = today - timedelta(days=i)
         short_name = days_map.get(d.strftime("%A"), d.strftime("%a"))
-        date_list.append({"day": d.day, "short_name": short_name})
+        date_list.append({"day": d.day, "month": d.strftime("%m"), "full_date": d.strftime("%Y-%m-%d"), "short_name": short_name})
+    # Сортируем по дате от текущей к прошлой
+    date_list.sort(key=lambda x: x["full_date"], reverse=True)
     return date_list
 
 # =======================
-# 6. Основной запрос для отображения матчей в WebApp
+# 6. Получение матчей для отображения (группировка по дате)
 # =======================
-def get_display_matches():
-    """
-    Выбирает необходимые для отображения данные матчей за последние 10 дней.
-    Отбираются как live, так и finished матчи.
-    """
+def get_display_matches_grouped():
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -329,7 +318,17 @@ def get_display_matches():
     matches = cur.fetchall()
     cur.close()
     conn.close()
-    return matches
+
+    # Группируем матчи по дате (match_date)
+    grouped = {}
+    for m in matches:
+        date = m.get("match_date")
+        if date not in grouped:
+            grouped[date] = []
+        grouped[date].append(m)
+    # Сортируем ключи (даты) от текущей к прошлой
+    sorted_grouped = dict(sorted(grouped.items(), reverse=True))
+    return sorted_grouped
 
 # =======================
 # 7. Планировщик обновления (каждые 15 минут)
@@ -338,7 +337,7 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(process_all_matches, 'interval', minutes=15)
 
 # =======================
-# 8. FastAPI приложение, статика, шаблоны
+# 8. Создание FastAPI приложения, подключение статики и шаблонов
 # =======================
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -348,7 +347,6 @@ templates = Jinja2Templates(directory="templates")
 def startup_event():
     print("Запуск планировщика обновления матчей...")
     scheduler.start()
-    # Обновляем данные при старте
     process_all_matches()
 
 @app.on_event("shutdown")
@@ -358,9 +356,9 @@ def shutdown_event():
 
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
-    matches = get_display_matches()
+    grouped_matches = get_display_matches_grouped()
     date_list = generate_date_list()
-    return templates.TemplateResponse("index.html", {"request": request, "matches": matches, "date_list": date_list})
+    return templates.TemplateResponse("index.html", {"request": request, "grouped_matches": grouped_matches, "date_list": date_list})
 
 if __name__ == "__main__":
     import uvicorn
