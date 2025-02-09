@@ -328,9 +328,9 @@ def get_display_matches_grouped(selected_date: str = None):
     sorted_grouped = dict(sorted(grouped.items(), reverse=True))
     return sorted_grouped
 
-# 7. Планировщик обновления (каждые 15 минут)
+# 7. Планировщик обновления (каждые 1 минут)
 scheduler = BackgroundScheduler()
-scheduler.add_job(process_all_matches, 'interval', minutes=15)
+scheduler.add_job(process_all_matches, 'interval', minutes=1)
 
 # 8. Создание FastAPI приложения, статика и шаблоны
 app = FastAPI()
