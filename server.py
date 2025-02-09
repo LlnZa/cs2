@@ -175,8 +175,8 @@ def insert_match(match):
     live_supported = live.get("supported")
     data = (
         match.get("id"),
-        # Формируем строку вида "Team1 vs Team2" (не обязательно для отображения)
-        f"{opponents[0]['opponent'].get('name', '-') if len(opponents)>0 else '-'} vs {opponents[1]['opponent'].get('name', '-') if len(opponents)>1 else '-'}",
+        # Формируем строку вида "Team1 vs Team2" (хотя в дальнейшем это не выводится, можно использовать другое значение)
+        f"{opponents[0]['opponent'].get('name','-')} vs {opponents[1]['opponent'].get('name','-')}",
         match.get("status"),
         scheduled_at,
         original_scheduled_at,
@@ -203,6 +203,7 @@ def insert_match(match):
         cur.close()
         conn.close()
 
+# =======================
 # 4a. Обновление past-матчей (для завершённых матчей)
 def process_past_matches():
     print("Получение past-матчей из API...")
@@ -224,6 +225,7 @@ def process_past_matches():
         insert_match(match)
         print(f"Past-матч {match.get('id')} ({match.get('name')}) обработан.")
 
+# =======================
 # 4b. Обновление live-матчей
 def process_live_matches():
     print("Получение live-матчей из API...")
@@ -249,6 +251,7 @@ def process_all_matches():
     process_live_matches()
     process_past_matches()
 
+# =======================
 # 5. Генерация списка дат (за последние 10 дней)
 def generate_date_list():
     today = datetime.today().date()
@@ -266,15 +269,17 @@ def generate_date_list():
         d = today - timedelta(days=i)
         short_name = days_map.get(d.strftime("%A"), d.strftime("%a"))
         date_list.append({
+            "full_date": d.strftime("%Y-%m-%d"),
             "day": d.day,
             "month": d.strftime("%m"),
-            "full_date": d.strftime("%Y-%m-%d"),
             "short_name": short_name
         })
+    # Сортируем по дате по убыванию (т.е. текущая сверху)
     date_list.sort(key=lambda x: x["full_date"], reverse=True)
     return date_list
 
-# 6. Получение матчей для отображения (группировка по дате и сортировка)
+# =======================
+# 6. Получение матчей для отображения (группировка по дате)
 def get_display_matches_grouped(selected_date: str = None):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -287,7 +292,11 @@ def get_display_matches_grouped(selected_date: str = None):
                 WHEN m.number_of_games = 5 THEN 'bo5'
                 ELSE 'bo' || m.number_of_games
             END AS bo_format,
-            to_char(m.scheduled_at, 'YYYY-MM-DD') AS match_date,
+            -- Если матч в лайве, принудительно назначаем сегодняшнюю дату
+            CASE 
+                WHEN m.live_supported AND m.status = 'running' THEN to_char(current_date, 'YYYY-MM-DD')
+                ELSE to_char(m.scheduled_at, 'YYYY-MM-DD')
+            END AS match_date,
             to_char(m.scheduled_at, 'HH24:MI') AS match_time,
             s.full_name AS series_full_name,
             t1.name AS team1_name,
@@ -306,33 +315,40 @@ def get_display_matches_grouped(selected_date: str = None):
         LEFT JOIN teams t1 ON m.team1_id = t1.team_id
         LEFT JOIN teams t2 ON m.team2_id = t2.team_id
         WHERE m.scheduled_at >= CURRENT_DATE - INTERVAL '10 days'
+    """
+    params = []
+    if selected_date:
+        query += " AND to_char(m.scheduled_at, 'YYYY-MM-DD') = %s"
+        params.append(selected_date)
+    query += """
         ORDER BY 
             CASE WHEN m.live_supported AND m.status = 'running' THEN 0 ELSE 1 END,
             m.scheduled_at DESC;
     """
-    if selected_date:
-        query += " AND to_char(m.scheduled_at, 'YYYY-MM-DD') = %s"
-        cur.execute(query, (selected_date,))
-    else:
-        cur.execute(query)
+    cur.execute(query, tuple(params))
     matches = cur.fetchall()
     cur.close()
     conn.close()
 
+    # Группировка матчей по дате для отображения
     grouped = {}
     for m in matches:
         date = m.get("match_date")
         if date not in grouped:
             grouped[date] = []
         grouped[date].append(m)
+    # Сортировка групп по дате (текущая дата сверху)
     sorted_grouped = dict(sorted(grouped.items(), reverse=True))
     return sorted_grouped
 
+# =======================
 # 7. Планировщик обновления (каждые 1 минут)
 scheduler = BackgroundScheduler()
 scheduler.add_job(process_all_matches, 'interval', minutes=1)
 
-# 8. Создание FastAPI приложения, статика и шаблоны
+# =======================
+# 8. Создание FastAPI приложения, подключение статики и шаблонов
+# =======================
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -341,7 +357,7 @@ templates = Jinja2Templates(directory="templates")
 def startup_event():
     print("Запуск планировщика обновления матчей...")
     scheduler.start()
-    process_all_matches()
+    process_all_matches()  # Обновляем данные при старте
 
 @app.on_event("shutdown")
 def shutdown_event():
