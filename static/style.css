@@ -29,14 +29,16 @@ h1 {
 
 /* Фон для live-матчей (плавное мигание фона можно реализовать через анимацию, пример ниже) */
 .live-match {
-    background: #e0f7fa;
+    background: #424242;
     animation: livePulse 2s infinite;
 }
+
 @keyframes livePulse {
-    0% { background-color: #e0f7fa; }
-    50% { background-color: #d0f0f5; }
-    100% { background-color: #e0f7fa; }
+    0% { background-color: #424242; }
+    50% { background-color: #757575; }
+    100% { background-color: #424242; }
 }
+
 
 /* Заголовок группы (дата) */
 .group-date {
@@ -74,12 +76,7 @@ h1 {
     margin: 0 10px;
 }
 
-/* Для ПК-версии: различное расположение левой и правой команды */
-.team-left {
-    /* Левый блок: логотип сверху, имя снизу */
-}
-.team-right {
-    /* Правый блок: для ПК – имя сверху, логотип снизу */
+
 }
 @media (min-width: 601px) {
     .team-right {
