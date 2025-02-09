@@ -148,8 +148,7 @@ def insert_match(match):
     cur = conn.cursor()
     query = """
         INSERT INTO matches 
-        (match_id, name, status, scheduled_at, original_scheduled_at, 
-         number_of_games, tournament_id, serie_id, league_id, 
+        (match_id, name, status, scheduled_at, original_scheduled_at, number_of_games, tournament_id, serie_id, league_id, 
          live_supported, live_url, live_opens_at, streams_list,
          final_score_team1, final_score_team2, team1_id, team2_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -176,7 +175,7 @@ def insert_match(match):
     live_supported = live.get("supported")
     data = (
         match.get("id"),
-        # Формируем строку вида "Team1 vs Team2" для удобства (не обязательно показывать, можно убрать)
+        # Формируем строку вида "Team1 vs Team2" (не обязательно для отображения)
         f"{opponents[0]['opponent'].get('name', '-') if len(opponents)>0 else '-'} vs {opponents[1]['opponent'].get('name', '-') if len(opponents)>1 else '-'}",
         match.get("status"),
         scheduled_at,
@@ -204,9 +203,7 @@ def insert_match(match):
         cur.close()
         conn.close()
 
-# =======================
 # 4a. Обновление past-матчей (для завершённых матчей)
-# =======================
 def process_past_matches():
     print("Получение past-матчей из API...")
     past_matches = fetch_api("/matches/past")
@@ -227,9 +224,7 @@ def process_past_matches():
         insert_match(match)
         print(f"Past-матч {match.get('id')} ({match.get('name')}) обработан.")
 
-# =======================
 # 4b. Обновление live-матчей
-# =======================
 def process_live_matches():
     print("Получение live-матчей из API...")
     live_matches = fetch_api("/matches/running")
@@ -250,16 +245,11 @@ def process_live_matches():
         insert_match(match)
         print(f"Live-матч {match.get('id')} ({match.get('name')}) обработан.")
 
-# =======================
-# 4c. Обновление всех матчей
-# =======================
 def process_all_matches():
     process_live_matches()
     process_past_matches()
 
-# =======================
 # 5. Генерация списка дат (за последние 10 дней)
-# =======================
 def generate_date_list():
     today = datetime.today().date()
     date_list = []
@@ -284,9 +274,7 @@ def generate_date_list():
     date_list.sort(key=lambda x: x["full_date"], reverse=True)
     return date_list
 
-# =======================
-# 6. Получение матчей для отображения (группировка по дате)
-# =======================
+# 6. Получение матчей для отображения (группировка по дате и сортировка)
 def get_display_matches_grouped(selected_date: str = None):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -318,6 +306,9 @@ def get_display_matches_grouped(selected_date: str = None):
         LEFT JOIN teams t1 ON m.team1_id = t1.team_id
         LEFT JOIN teams t2 ON m.team2_id = t2.team_id
         WHERE m.scheduled_at >= CURRENT_DATE - INTERVAL '10 days'
+        ORDER BY 
+            CASE WHEN m.live_supported AND m.status = 'running' THEN 0 ELSE 1 END,
+            m.scheduled_at DESC;
     """
     if selected_date:
         query += " AND to_char(m.scheduled_at, 'YYYY-MM-DD') = %s"
@@ -337,15 +328,11 @@ def get_display_matches_grouped(selected_date: str = None):
     sorted_grouped = dict(sorted(grouped.items(), reverse=True))
     return sorted_grouped
 
-# =======================
 # 7. Планировщик обновления (каждые 15 минут)
-# =======================
 scheduler = BackgroundScheduler()
 scheduler.add_job(process_all_matches, 'interval', minutes=15)
 
-# =======================
-# 8. Создание FastAPI приложения, подключение статики и шаблонов
-# =======================
+# 8. Создание FastAPI приложения, статика и шаблоны
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
