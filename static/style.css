@@ -1,6 +1,8 @@
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    background: #fafafa;
+    color: #333;
 }
 
 h1 {
@@ -17,37 +19,19 @@ h1 {
     padding: 10px;
     margin-bottom: 20px;
     text-align: center;
+    background: #fff;
 }
 
-/* Горизонтальный скроллер дат */
-#date-scroller {
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 10px;
-    border-top: 1px solid #ddd;
-    margin-top: 30px;
-}
-
-.dates {
-    display: inline-flex;
-}
-
-.date-item {
-    width: 60px;
-    flex-shrink: 0;
-    text-align: center;
-    margin-right: 10px;
-    padding: 5px;
-    background: #f8f8f8;
-    border-radius: 5px;
-}
-
-.day-number {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.day-name {
-    font-size: 14px;
-    color: #666;
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #1e1e1e;
+        color: #e0e0e0;
+    }
+    h1 {
+        color: #e0e0e0;
+    }
+    .match-container {
+        border: 1px solid #444;
+        background: #2e2e2e;
+    }
 }
