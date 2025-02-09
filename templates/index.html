@@ -44,7 +44,8 @@
                             </div>
                         </div>
                         <div class="match-teams">
-                            <div class="team-block">
+                            <!-- Для ПК: левая команда – логотип сверху, имя снизу; правая – имя сверху, логотип снизу -->
+                            <div class="team-block team-left">
                                 {% if match.team1_logo %}
                                     <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}">
                                 {% endif %}
@@ -67,13 +68,14 @@
                                     - vs -
                                 {% endif %}
                             </div>
-                            <div class="team-block">
+                            <div class="team-block team-right">
                                 <span class="team-name">{{ match.team2_name }}</span>
                                 {% if match.team2_logo %}
                                     <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}">
                                 {% endif %}
                             </div>
                         </div>
+                        <!-- Для случаев, когда нужно отобразить время (можно убрать для live матчей) -->
                         <div class="match-schedule">
                             <div class="match-date">{{ match.match_date }}</div>
                             <div class="match-time">{{ match.match_time }}</div>
@@ -86,7 +88,7 @@
         <p>Нет матчей за выбранную дату.</p>
     {% endif %}
 
-    <!-- Фиксированный горизонтальный скроллер дат (расположен над фиксированным футером) -->
+    <!-- Фиксированный горизонтальный скроллер дат (расположен над футером) -->
     <div id="date-scroller">
         <div class="dates">
             {% for day in date_list %}
