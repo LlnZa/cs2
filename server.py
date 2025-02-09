@@ -226,30 +226,43 @@ def insert_match(match):
 # =======================
 # 4. Функция обновления live-матчей из API
 # =======================
-def process_live_matches():
-    print("Получение live-матчей из API...")
-    live_matches = fetch_api("/matches/running")
-    if live_matches is None:
-        print("Нет данных по live-матчам.")
-        return
-    for match in live_matches:
-        # Обработка команд
-        opponents = match.get("opponents", [])
-        for opp in opponents:
-            team = opp.get("opponent")
-            if team:
-                insert_team(team)
-        # Обработка лиги (если есть)
-        league = match.get("league")
-        if league:
-            insert_league(league)
-        # Обработка серии (если есть)
-        serie = match.get("serie")
-        if serie:
-            insert_series(serie)
-        # Вставляем данные о матче
-        insert_match(match)
-        print(f"Матч {match.get('id')} ({match.get('name')}) обработан.")
+def get_live_matches():
+    """
+    Выбирает из таблицы matches только live-матчи с объединением необходимых таблиц.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        SELECT 
+            m.match_id,
+            CASE 
+                WHEN m.number_of_games = 1 THEN 'bo1'
+                WHEN m.number_of_games = 3 THEN 'bo3'
+                WHEN m.number_of_games = 5 THEN 'bo5'
+                ELSE CONCAT('bo', m.number_of_games) 
+            END AS bo_format,
+            to_char(m.scheduled_at, 'YYYY-MM-DD') AS match_date,
+            to_char(m.scheduled_at, 'HH24:MI') AS match_time,
+            s.full_name AS series_full_name,
+            t1.name AS team1_name,
+            t1.image_url AS team1_logo,
+            t2.name AS team2_name,
+            t2.image_url AS team2_logo,
+            m.final_score_team1,
+            m.final_score_team2,
+            m.live_supported
+        FROM matches m
+        LEFT JOIN series s ON m.serie_id = s.serie_id
+        LEFT JOIN teams t1 ON m.team1_id = t1.team_id
+        LEFT JOIN teams t2 ON m.team2_id = t2.team_id
+        WHERE m.status = 'running';
+    """
+    cur.execute(query)
+    matches = cur.fetchall()
+    cur.close()
+    conn.close()
+    return matches
+
 
 # =======================
 # 5. Планировщик APScheduler
