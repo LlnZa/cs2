@@ -19,28 +19,83 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
-        /* Шапка матча */
+        /* Стили для блока матча */
+        .match-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #fff;
+            border-radius: 8px;
+        }
         .match-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            font-size: 16px;
         }
-        .match-header > div {
-            flex: 1;
-            text-align: center;
-        }
-        /* Блок с информацией о командах */
         .match-teams {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
         .match-teams img {
             margin: 0 10px;
+            border-radius: 50%;
         }
-        /* Фиксированный подвал с кнопками */
+        .match-teams .score {
+            margin: 0 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .match-schedule {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        /* Заголовок группы (дата) */
+        .group-date {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 30px 0 10px 0;
+            text-align: center;
+        }
+        /* Горизонтальный скроллер дат */
+        #date-scroller {
+            position: fixed;
+            bottom: 60px; /* над футером */
+            left: 0;
+            right: 0;
+            background: var(--scroller-bg, #e8e8e8);
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 10px 0;
+            z-index: 10;
+        }
+        .dates {
+            display: inline-flex;
+            justify-content: center;
+            width: 100%;
+        }
+        .date-item {
+            width: 60px;
+            flex-shrink: 0;
+            text-align: center;
+            margin: 0 5px;
+            padding: 5px;
+            background: var(--date-bg, #f8f8f8);
+            border-radius: 5px;
+        }
+        .date-item .day-number {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .date-item .day-name {
+            font-size: 14px;
+            color: var(--date-text, #666);
+        }
+        /* Фиксированный футер с навигационными кнопками */
         .footer-nav {
             position: fixed;
             bottom: 0;
@@ -51,6 +106,7 @@
             display: flex;
             justify-content: space-around;
             padding: 10px 0;
+            z-index: 20;
         }
         .footer-nav button {
             background: transparent;
@@ -59,43 +115,34 @@
             cursor: pointer;
             color: var(--footer-text, #333);
         }
-        /* Горизонтальный скроллер дат */
-        #date-scroller {
-            overflow-x: auto;
-            white-space: nowrap;
-            padding: 10px;
-            background: var(--scroller-bg, #e8e8e8);
+        /* Общие отступы для мобильных устройств */
+        @media (max-width: 600px) {
+            .match-container {
+                padding: 10px;
+                margin-bottom: 15px;
+            }
+            .match-header, .match-teams, .match-schedule {
+                font-size: 14px;
+            }
+            .match-teams .score {
+                font-size: 16px;
+            }
+            .footer-nav button {
+                font-size: 14px;
+            }
         }
-        .dates {
-            display: inline-flex;
-        }
-        .date-item {
-            width: 60px;
-            flex-shrink: 0;
-            text-align: center;
-            margin-right: 10px;
-            padding: 5px;
-            background: var(--date-bg, #f8f8f8);
-            border-radius: 5px;
-        }
-        .day-number {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .day-name {
-            font-size: 14px;
-            color: var(--date-text, #666);
-        }
-        /* Адаптация для тёмного режима */
+        /* Тёмный режим */
         @media (prefers-color-scheme: dark) {
             body {
                 background: #1e1e1e;
                 color: #e0e0e0;
             }
-            h1 { color: #e0e0e0; }
             .match-container {
                 border: 1px solid #444;
                 background: #2e2e2e;
+            }
+            .group-date {
+                color: #e0e0e0;
             }
             #date-scroller {
                 background: #2e2e2e;
@@ -115,59 +162,55 @@
 </head>
 <body>
     <h1>Матчи</h1>
-    {% if matches %}
-        <ul class="match-list">
-        {% for match in matches %}
-            <li class="match-container">
-                <div class="match-header">
-                    <div class="bo-format">{{ match.bo_format }}</div>
-                    <div class="series">{{ match.series_full_name }}</div>
-                    <div class="status">
-                        {% if match.live_supported and match.status == 'running' %}
-                            <span class="live-indicator"></span>Live
-                        {% elif match.status == 'finished' %}
-                            Завершён
-                        {% else %}
-                            off
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="match-teams">
-                    {% if match.team1_logo %}
-                        <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}" width="50" height="50">
-                    {% endif %}
-                    <span class="team-name">{{ match.team1_name }}</span>
-                    <span class="score">
-                        {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
-                            {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
-                        {% else %}
-                            - vs -
-                        {% endif %}
-                    </span>
-                    <span class="team-name">{{ match.team2_name }}</span>
-                    {% if match.team2_logo %}
-                        <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}" width="50" height="50">
-                    {% endif %}
-                </div>
-                <div class="match-schedule">
-                    <div class="match-date">{{ match.match_date }}</div>
-                    <div class="match-time">{{ match.match_time }}</div>
-                </div>
-            </li>
+    
+    {% if grouped_matches %}
+        {% for match_date, matches in grouped_matches.items() %}
+            <div class="group-date">{{ match_date }}</div>
+            <ul class="match-list">
+                {% for match in matches %}
+                    <li class="match-container">
+                        <div class="match-header">
+                            <div class="bo-format">{{ match.bo_format }}</div>
+                            <div class="series">{{ match.series_full_name }}</div>
+                            <div class="status">
+                                {% if match.live_supported and match.status == 'running' %}
+                                    <span class="live-indicator"></span>Live
+                                {% elif match.status == 'finished' %}
+                                    Завершён
+                                {% else %}
+                                    off
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="match-teams">
+                            {% if match.team1_logo %}
+                                <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}" width="50" height="50">
+                            {% endif %}
+                            <span class="team-name">{{ match.team1_name }}</span>
+                            <span class="score">
+                                {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
+                                    {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
+                                {% else %}
+                                    - vs -
+                                {% endif %}
+                            </span>
+                            <span class="team-name">{{ match.team2_name }}</span>
+                            {% if match.team2_logo %}
+                                <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}" width="50" height="50">
+                            {% endif %}
+                        </div>
+                        <div class="match-schedule">
+                            <div class="match-time">{{ match.match_time }}</div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
         {% endfor %}
-        </ul>
     {% else %}
         <p>Нет матчей за последние 10 дней.</p>
     {% endif %}
 
-    <!-- Фиксированный подвал с навигацией -->
-    <div class="footer-nav">
-        <button onclick="location.href='/events'">События</button>
-        <button onclick="location.href='/'">Матчи</button>
-        <button onclick="location.href='/rating'">Рейтинг</button>
-    </div>
-
-    <!-- Горизонтальный скроллер дат -->
+    <!-- Фиксированный горизонтальный скроллер дат (отображается только в разделе "Матчи") -->
     <div id="date-scroller">
         <div class="dates">
             {% for day in date_list %}
@@ -177,6 +220,13 @@
                 </div>
             {% endfor %}
         </div>
+    </div>
+
+    <!-- Фиксированный футер с навигацией -->
+    <div class="footer-nav">
+        <button onclick="location.href='/events'">События</button>
+        <button onclick="location.href='/'">Матчи</button>
+        <button onclick="location.href='/rating'">Рейтинг</button>
     </div>
 </body>
 </html>
