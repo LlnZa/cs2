@@ -5,6 +5,7 @@
     <title>Матчи CS:GO</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        /* Мигающий индикатор Live */
         .live-indicator {
             display: inline-block;
             width: 10px;
@@ -18,16 +19,18 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
+        /* Шапка матча */
         .match-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 5px;
         }
-        .match-header div {
+        .match-header > div {
             flex: 1;
             text-align: center;
         }
+        /* Блок с информацией о командах */
         .match-teams {
             display: flex;
             justify-content: center;
@@ -36,6 +39,77 @@
         }
         .match-teams img {
             margin: 0 10px;
+        }
+        /* Фиксированный подвал с кнопками */
+        .footer-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--footer-bg, #f0f0f0);
+            border-top: 1px solid #ccc;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+        }
+        .footer-nav button {
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--footer-text, #333);
+        }
+        /* Горизонтальный скроллер дат */
+        #date-scroller {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 10px;
+            background: var(--scroller-bg, #e8e8e8);
+        }
+        .dates {
+            display: inline-flex;
+        }
+        .date-item {
+            width: 60px;
+            flex-shrink: 0;
+            text-align: center;
+            margin-right: 10px;
+            padding: 5px;
+            background: var(--date-bg, #f8f8f8);
+            border-radius: 5px;
+        }
+        .day-number {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .day-name {
+            font-size: 14px;
+            color: var(--date-text, #666);
+        }
+        /* Адаптация для тёмного режима */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #1e1e1e;
+                color: #e0e0e0;
+            }
+            h1 { color: #e0e0e0; }
+            .match-container {
+                border: 1px solid #444;
+                background: #2e2e2e;
+            }
+            #date-scroller {
+                background: #2e2e2e;
+            }
+            .date-item {
+                background: #3e3e3e;
+            }
+            .footer-nav {
+                background: #2e2e2e;
+                border-top: 1px solid #444;
+            }
+            .footer-nav button {
+                color: #e0e0e0;
+            }
         }
     </style>
 </head>
@@ -49,8 +123,10 @@
                     <div class="bo-format">{{ match.bo_format }}</div>
                     <div class="series">{{ match.series_full_name }}</div>
                     <div class="status">
-                        {% if match.live_supported %}
+                        {% if match.live_supported and match.status == 'running' %}
                             <span class="live-indicator"></span>Live
+                        {% elif match.status == 'finished' %}
+                            Завершён
                         {% else %}
                             off
                         {% endif %}
@@ -73,18 +149,23 @@
                         <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}" width="50" height="50">
                     {% endif %}
                 </div>
-
                 <div class="match-schedule">
                     <div class="match-date">{{ match.match_date }}</div>
                     <div class="match-time">{{ match.match_time }}</div>
                 </div>
-                
             </li>
         {% endfor %}
         </ul>
     {% else %}
         <p>Нет матчей за последние 10 дней.</p>
     {% endif %}
+
+    <!-- Фиксированный подвал с навигацией -->
+    <div class="footer-nav">
+        <button onclick="location.href='/events'">События</button>
+        <button onclick="location.href='/'">Матчи</button>
+        <button onclick="location.href='/rating'">Рейтинг</button>
+    </div>
 
     <!-- Горизонтальный скроллер дат -->
     <div id="date-scroller">
