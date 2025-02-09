@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <title>Live Matches</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Пример простого стиля для мигающего красного кружка */
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
 </head>
 <body>
     <h1>Live Matches</h1>
@@ -11,16 +26,41 @@
         <ul>
         {% for match in matches %}
             <li>
-                <h2>{{ match.name }}</h2>
-                <p><strong>Статус:</strong> {{ match.status }}</p>
-                <p><strong>Запланировано на:</strong> {{ match.scheduled_at }}</p>
-                <p><strong>Начало матча:</strong> {{ match.begin_at }}</p>
-                <p><strong>Турнир ID:</strong> {{ match.tournament_id }}</p>
-                <p><strong>Лига ID:</strong> {{ match.league_id }}</p>
-                <p><strong>Серия ID:</strong> {{ match.serie_id }}</p>
-                <p><strong>Количество карт:</strong> {{ match.number_of_games }}</p>
-                <p><strong>ID команды 1:</strong> {{ match.team1_id }} | <strong>ID команды 2:</strong> {{ match.team2_id }}</p>
-                <!-- Если у вас будут ссылки на лого, можно добавить тэг <img src="..."> -->
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <!-- Количество карт, например "bo3" -->
+                    <div>{{ match.bo_format }}</div>
+                    <!-- Название серии, например "Katowice 2025" -->
+                    <div>{{ match.series_full_name }}</div>
+                    <!-- Индикатор Live -->
+                    {% if match.live_supported %}
+                        <div><span class="live-indicator"></span> Live</div>
+                    {% else %}
+                        <div>off</div>
+                    {% endif %}
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <!-- Логотип и имя первой команды -->
+                    {% if match.team1_logo %}
+                        <img src="{{ match.team1_logo }}" alt="{{ match.team1_name }}" width="50" height="50">
+                    {% endif %}
+                    <span>{{ match.team1_name }}</span>
+                    <!-- Счет -->
+                    {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
+                        <span style="margin: 0 10px;">{{ match.final_score_team1 }} vs {{ match.final_score_team2 }}</span>
+                    {% else %}
+                        <span style="margin: 0 10px;">- vs -</span>
+                    {% endif %}
+                    <!-- Имя и логотип второй команды -->
+                    <span>{{ match.team2_name }}</span>
+                    {% if match.team2_logo %}
+                        <img src="{{ match.team2_logo }}" alt="{{ match.team2_name }}" width="50" height="50">
+                    {% endif %}
+                </div>
+                <div>
+                    <!-- Отображение запланированного времени: дата и время на разных строках -->
+                    <div>{{ match.match_date }}</div>
+                    <div>{{ match.match_time }}</div>
+                </div>
             </li>
         {% endfor %}
         </ul>
