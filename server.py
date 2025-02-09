@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # =======================
-# 1. Подключение к базе данных
+# 1. Настройки подключения к базе данных
 # =======================
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
@@ -62,7 +62,7 @@ def parse_datetime(dt_str):
         return None
 
 # =======================
-# 3. Функции вставки в таблицы
+# 3. Функции вставки данных в таблицы
 # =======================
 def insert_team(team):
     conn = get_db_connection()
@@ -160,7 +160,6 @@ def insert_match(match):
     """
     scheduled_at = parse_datetime(match.get("scheduled_at"))
     original_scheduled_at = parse_datetime(match.get("original_scheduled_at"))
-    # Для отображения на сайте оставляем только запланированное время
     results = match.get("results")
     if results and isinstance(results, list) and len(results) >= 2:
         final_score_team1 = results[0].get("score")
@@ -177,7 +176,7 @@ def insert_match(match):
     live_supported = live.get("supported")
     data = (
         match.get("id"),
-        # Формируем строку вида "Team1 vs Team2"
+        # Формируем строку вида "Team1 vs Team2" для удобства (не обязательно показывать, можно убрать)
         f"{opponents[0]['opponent'].get('name', '-') if len(opponents)>0 else '-'} vs {opponents[1]['opponent'].get('name', '-') if len(opponents)>1 else '-'}",
         match.get("status"),
         scheduled_at,
@@ -206,7 +205,7 @@ def insert_match(match):
         conn.close()
 
 # =======================
-# 4a. Функция обновления past-матчей (для завершённых матчей)
+# 4a. Обновление past-матчей (для завершённых матчей)
 # =======================
 def process_past_matches():
     print("Получение past-матчей из API...")
@@ -229,7 +228,7 @@ def process_past_matches():
         print(f"Past-матч {match.get('id')} ({match.get('name')}) обработан.")
 
 # =======================
-# 4b. Функция обновления live-матчей
+# 4b. Обновление live-матчей
 # =======================
 def process_live_matches():
     print("Получение live-матчей из API...")
@@ -252,7 +251,7 @@ def process_live_matches():
         print(f"Live-матч {match.get('id')} ({match.get('name')}) обработан.")
 
 # =======================
-# 4c. Функция обновления всех матчей
+# 4c. Обновление всех матчей
 # =======================
 def process_all_matches():
     process_live_matches()
@@ -276,15 +275,19 @@ def generate_date_list():
     for i in range(10):
         d = today - timedelta(days=i)
         short_name = days_map.get(d.strftime("%A"), d.strftime("%a"))
-        date_list.append({"day": d.day, "month": d.strftime("%m"), "full_date": d.strftime("%Y-%m-%d"), "short_name": short_name})
-    # Сортируем по дате от текущей к прошлой
+        date_list.append({
+            "day": d.day,
+            "month": d.strftime("%m"),
+            "full_date": d.strftime("%Y-%m-%d"),
+            "short_name": short_name
+        })
     date_list.sort(key=lambda x: x["full_date"], reverse=True)
     return date_list
 
 # =======================
 # 6. Получение матчей для отображения (группировка по дате)
 # =======================
-def get_display_matches_grouped():
+def get_display_matches_grouped(selected_date: str = None):
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -305,28 +308,32 @@ def get_display_matches_grouped():
             t2.image_url AS team2_logo,
             m.final_score_team1,
             m.final_score_team2,
-            m.status,
-            m.live_supported
+            CASE 
+                WHEN m.live_supported AND m.status = 'running' THEN 'Live'
+                WHEN m.status = 'finished' THEN 'Завершён'
+                ELSE m.status
+            END AS display_status
         FROM matches m
         LEFT JOIN series s ON m.serie_id = s.serie_id
         LEFT JOIN teams t1 ON m.team1_id = t1.team_id
         LEFT JOIN teams t2 ON m.team2_id = t2.team_id
         WHERE m.scheduled_at >= CURRENT_DATE - INTERVAL '10 days'
-        ORDER BY m.scheduled_at DESC;
     """
-    cur.execute(query)
+    if selected_date:
+        query += " AND to_char(m.scheduled_at, 'YYYY-MM-DD') = %s"
+        cur.execute(query, (selected_date,))
+    else:
+        cur.execute(query)
     matches = cur.fetchall()
     cur.close()
     conn.close()
 
-    # Группируем матчи по дате (match_date)
     grouped = {}
     for m in matches:
         date = m.get("match_date")
         if date not in grouped:
             grouped[date] = []
         grouped[date].append(m)
-    # Сортируем ключи (даты) от текущей к прошлой
     sorted_grouped = dict(sorted(grouped.items(), reverse=True))
     return sorted_grouped
 
@@ -355,10 +362,15 @@ def shutdown_event():
     scheduler.shutdown()
 
 @app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    grouped_matches = get_display_matches_grouped()
+def read_root(request: Request, date: str = None):
+    grouped_matches = get_display_matches_grouped(selected_date=date)
     date_list = generate_date_list()
-    return templates.TemplateResponse("index.html", {"request": request, "grouped_matches": grouped_matches, "date_list": date_list})
+    return templates.TemplateResponse("index.html", {
+        "request": request, 
+        "grouped_matches": grouped_matches, 
+        "date_list": date_list,
+        "selected_date": date
+    })
 
 if __name__ == "__main__":
     import uvicorn
