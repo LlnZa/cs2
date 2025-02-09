@@ -3,7 +3,7 @@ body {
     margin: 20px;
     background: #fafafa;
     color: #333;
-    padding-bottom: 120px; /* чтобы нижний контент не скрывался фиксированными элементами */
+    padding-bottom: 140px; /* чтобы контент не закрывался фиксированными элементами */
 }
 
 h1 {
@@ -12,6 +12,7 @@ h1 {
     margin-bottom: 30px;
 }
 
+/* Стили для списка матчей */
 .match-list {
     list-style-type: none;
     padding: 0;
@@ -26,13 +27,19 @@ h1 {
     text-align: center;
 }
 
+/* Фон для live-матчей */
+.live-match {
+    background: #e0ffe0; /* светло-зелёный фон для матчей в лайве */
+}
+
 .group-date {
     font-size: 20px;
     font-weight: bold;
-    margin: 20px 0 10px 0;
+    margin: 10px 0 10px 0;
     text-align: center;
 }
 
+/* Заголовок матча */
 .match-header {
     display: flex;
     justify-content: space-between;
@@ -41,19 +48,32 @@ h1 {
     font-size: 16px;
 }
 
+.match-header > div {
+    flex: 1;
+    text-align: center;
+}
+
+/* Блок с командами */
 .match-teams {
     display: flex;
     justify-content: center;
     align-items: center;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 .match-teams img {
-    width: 80px;  /* увеличена область логотипа */
-    height: 80px;
+    width: 60px;  /* оставляем прежний размер */
+    height: 60px;
     object-fit: contain;
     margin: 0 10px;
-    border-radius: 50%;
+    /* Убираем округление: */
+    border-radius: 0;
+}
+
+.match-teams .team-name {
+    font-weight: bold;
+    margin: 0 5px;
 }
 
 .match-teams .score {
@@ -62,22 +82,31 @@ h1 {
     font-size: 18px;
 }
 
+/* Классы для счета в завершённых матчах */
+.winning {
+    color: green;
+}
+.losing {
+    color: red;
+}
+
+/* Блок с датой и временем матча */
 .match-schedule {
     font-size: 14px;
     color: #666;
     margin-bottom: 10px;
 }
 
-/* Горизонтальный скроллер дат */
+/* Горизонтальный скроллер дат – фиксирован над футером */
 #date-scroller {
     position: fixed;
-    bottom: 60px; /* выше футера */
+    bottom: 60px;
     left: 0;
     right: 0;
     background: #e8e8e8;
     overflow-x: auto;
     white-space: nowrap;
-    padding: 5px 0; /* уменьшенные отступы */
+    padding: 5px 0;
     z-index: 10;
 }
 
@@ -88,11 +117,11 @@ h1 {
 }
 
 .date-item {
-    width: 50px;  /* уменьшенная ширина */
+    width: 45px;
     flex-shrink: 0;
     text-align: center;
-    margin: 0 3px; /* уменьшенные промежутки */
-    padding: 5px;
+    margin: 0 2px;
+    padding: 4px;
     background: #f8f8f8;
     border-radius: 5px;
 }
@@ -139,7 +168,7 @@ h1 {
 @media (max-width: 600px) {
     body {
         margin: 10px;
-        padding-bottom: 140px;
+        padding-bottom: 160px;
     }
     .match-container {
         padding: 10px;
@@ -157,11 +186,10 @@ h1 {
     .footer-nav a {
         font-size: 14px;
     }
-    /* Уменьшаем размеры блока дат, если они не помещаются */
     .date-item {
-        width: 45px;
+        width: 40px;
         margin: 0 2px;
-        padding: 4px;
+        padding: 3px;
     }
 }
 
