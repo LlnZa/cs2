@@ -29,7 +29,7 @@
             <div class="group-date">{{ match_date }}</div>
             <ul class="match-list">
                 {% for match in matches %}
-                    <li class="match-container">
+                    <li class="match-container {% if match.display_status == 'Live' %}live-match{% endif %}">
                         <div class="match-header">
                             <div class="bo-format">{{ match.bo_format }}</div>
                             <div class="series">{{ match.series_full_name }}</div>
@@ -50,7 +50,17 @@
                             <span class="team-name">{{ match.team1_name }}</span>
                             <span class="score">
                                 {% if match.final_score_team1 is not none and match.final_score_team2 is not none %}
-                                    {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
+                                    {% if match.display_status == 'Завершён' %}
+                                        {% if match.final_score_team1 > match.final_score_team2 %}
+                                            <span class="winning">{{ match.final_score_team1 }}</span> vs <span class="losing">{{ match.final_score_team2 }}</span>
+                                        {% elif match.final_score_team1 < match.final_score_team2 %}
+                                            <span class="losing">{{ match.final_score_team1 }}</span> vs <span class="winning">{{ match.final_score_team2 }}</span>
+                                        {% else %}
+                                            {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ match.final_score_team1 }} vs {{ match.final_score_team2 }}
+                                    {% endif %}
                                 {% else %}
                                     - vs -
                                 {% endif %}
@@ -72,7 +82,7 @@
         <p>Нет матчей за последние 10 дней.</p>
     {% endif %}
 
-    <!-- Горизонтальный скроллер дат (фиксированный над футером) -->
+    <!-- Фиксированный горизонтальный скроллер дат над навигационным футером -->
     <div id="date-scroller">
         <div class="dates">
             {% for day in date_list %}
