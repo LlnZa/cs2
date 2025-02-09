@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -13,7 +13,9 @@ from fastapi.staticfiles import StaticFiles
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# 1. Настройки подключения к базе данных
+# =======================
+# 1. Настройки подключения к БД
+# =======================
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -31,7 +33,9 @@ def get_db_connection():
         )
     return conn
 
+# =======================
 # 2. Настройки API
+# =======================
 API_TOKEN = os.getenv("API_TOKEN", "o9lfBugxpaB8acOZJusXrSUDtFGCfqtXiMe0nTOkC3LagsGDjRA")
 API_BASE_URL = "https://api.pandascore.co/csgo"
 
@@ -57,8 +61,9 @@ def parse_datetime(dt_str):
         print(f"Ошибка преобразования даты {dt_str}: {e}")
         return None
 
+# =======================
 # 3. Функции вставки данных в таблицы
-
+# =======================
 def insert_team(team):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -211,7 +216,9 @@ def insert_match(match):
         cur.close()
         conn.close()
 
+# =======================
 # 4. Функция обновления live-матчей из API
+# =======================
 def process_live_matches():
     print("Получение live-матчей из API...")
     live_matches = fetch_api("/matches/running")
@@ -237,33 +244,35 @@ def process_live_matches():
         insert_match(match)
         print(f"Матч {match.get('id')} ({match.get('name')}) обработан.")
 
-# 5. Планировщик APScheduler
-scheduler = BackgroundScheduler()
-scheduler.add_job(process_live_matches, 'interval', minutes=15)
+# =======================
+# 5. Генерация списка дат (последние 10 дней)
+# =======================
+def generate_date_list():
+    """Возвращает список дат за последние 10 дней с полями day (число) и short_name (аббревиатура дня недели)."""
+    today = datetime.today().date()
+    date_list = []
+    days_map = {
+        'Monday': 'Пн',
+        'Tuesday': 'Вт',
+        'Wednesday': 'Ср',
+        'Thursday': 'Чт',
+        'Friday': 'Пт',
+        'Saturday': 'Сб',
+        'Sunday': 'Вс'
+    }
+    for i in range(10):
+        d = today - timedelta(days=i)
+        short_name = days_map.get(d.strftime("%A"), d.strftime("%a"))
+        date_list.append({"day": d.day, "short_name": short_name})
+    return date_list
 
-# 6. Создание экземпляра FastAPI (создаём только один раз)
-app = FastAPI()
-
-# Подключаем статические файлы и шаблоны
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-# 7. События старта и остановки приложения
-@app.on_event("startup")
-def startup_event():
-    print("Запуск планировщика обновления live-матчей...")
-    scheduler.start()
-    # Можно сразу обновить данные при старте
-    process_live_matches()
-
-@app.on_event("shutdown")
-def shutdown_event():
-    print("Остановка планировщика...")
-    scheduler.shutdown()
-
-# 8. Основной маршрут для WebApp
-@app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
+# =======================
+# 6. Основной запрос для отображения матчей в WebApp
+# =======================
+def get_display_matches():
+    """
+    Выбирает необходимые для отображения данные матчей за последние 10 дней.
+    """
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -273,10 +282,8 @@ def read_root(request: Request):
                 WHEN m.number_of_games = 1 THEN 'bo1'
                 WHEN m.number_of_games = 3 THEN 'bo3'
                 WHEN m.number_of_games = 5 THEN 'bo5'
-                ELSE CONCAT('bo', m.number_of_games)
+                ELSE 'bo' || m.number_of_games
             END AS bo_format,
-            to_char(m.scheduled_at, 'YYYY-MM-DD') AS match_date,
-            to_char(m.scheduled_at, 'HH24:MI') AS match_time,
             s.full_name AS series_full_name,
             t1.name AS team1_name,
             t1.image_url AS team1_logo,
@@ -289,13 +296,45 @@ def read_root(request: Request):
         LEFT JOIN series s ON m.serie_id = s.serie_id
         LEFT JOIN teams t1 ON m.team1_id = t1.team_id
         LEFT JOIN teams t2 ON m.team2_id = t2.team_id
-        WHERE m.status = 'running';
+        WHERE m.scheduled_at >= CURRENT_DATE - INTERVAL '10 days'
+        ORDER BY m.scheduled_at DESC;
     """
     cur.execute(query)
     matches = cur.fetchall()
     cur.close()
     conn.close()
-    return templates.TemplateResponse("index.html", {"request": request, "matches": matches})
+    return matches
+
+# =======================
+# 7. Планировщик обновления (каждые 15 минут)
+# =======================
+scheduler = BackgroundScheduler()
+scheduler.add_job(process_live_matches, 'interval', minutes=15)
+
+# =======================
+# 8. Создание FastAPI приложения, подключение шаблонов и статики
+# =======================
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+@app.on_event("startup")
+def startup_event():
+    print("Запуск планировщика обновления live-матчей...")
+    scheduler.start()
+    # При старте сразу обновляем данные
+    process_live_matches()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    print("Остановка планировщика...")
+    scheduler.shutdown()
+
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    matches = get_display_matches()
+    date_list = generate_date_list()
+    return templates.TemplateResponse("index.html", {"request": request, "matches": matches, "date_list": date_list})
 
 if __name__ == "__main__":
     import uvicorn
