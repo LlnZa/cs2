@@ -29,13 +29,14 @@ h1 {
 
 /* Фон для live-матчей */
 .live-match {
-    background: #e0ffe0; /* светло-зелёный фон для матчей в лайве */
+    background: #e0f7fa; /* светло-голубой фон для live-матчей */
 }
 
+/* Заголовок группы (дата) */
 .group-date {
     font-size: 20px;
     font-weight: bold;
-    margin: 10px 0 10px 0;
+    margin: 10px 0;
     text-align: center;
 }
 
@@ -47,7 +48,6 @@ h1 {
     margin-bottom: 10px;
     font-size: 16px;
 }
-
 .match-header > div {
     flex: 1;
     text-align: center;
@@ -61,28 +61,30 @@ h1 {
     margin-bottom: 10px;
     flex-wrap: wrap;
 }
-
-.match-teams img {
-    width: 60px;  /* оставляем прежний размер */
-    height: 60px;
-    object-fit: contain;
+.team-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin: 0 10px;
-    /* Убираем округление: */
+}
+.match-teams img {
+    width: 50px; /* уменьшено для мобильных */
+    height: 50px;
+    object-fit: contain;
+    margin-bottom: 5px;
     border-radius: 0;
 }
-
 .match-teams .team-name {
     font-weight: bold;
     margin: 0 5px;
 }
-
 .match-teams .score {
-    margin: 0 15px;
     font-weight: bold;
     font-size: 18px;
+    margin: 0 15px;
 }
 
-/* Классы для счета в завершённых матчах */
+/* Стили для счета в завершённых матчах */
 .winning {
     color: green;
 }
@@ -97,7 +99,7 @@ h1 {
     margin-bottom: 10px;
 }
 
-/* Горизонтальный скроллер дат – фиксирован над футером */
+/* Фиксированный горизонтальный скроллер дат */
 #date-scroller {
     position: fixed;
     bottom: 60px;
@@ -109,13 +111,11 @@ h1 {
     padding: 5px 0;
     z-index: 10;
 }
-
 .dates {
     display: inline-flex;
     justify-content: center;
     width: 100%;
 }
-
 .date-item {
     width: 45px;
     flex-shrink: 0;
@@ -125,17 +125,14 @@ h1 {
     background: #f8f8f8;
     border-radius: 5px;
 }
-
 .date-item.active {
     background: #ffcc00;
     color: #000;
 }
-
 .day-number {
     font-size: 16px;
     font-weight: bold;
 }
-
 .day-name {
     font-size: 12px;
     color: #666;
@@ -154,12 +151,8 @@ h1 {
     padding: 10px 0;
     z-index: 20;
 }
-
 .footer-nav a {
-    background: transparent;
-    border: none;
     font-size: 16px;
-    cursor: pointer;
     color: #333;
     text-decoration: none;
 }
@@ -180,14 +173,15 @@ h1 {
     .match-header, .match-teams, .match-schedule {
         font-size: 14px;
     }
-    .match-teams .score {
-        font-size: 16px;
+    .match-teams img {
+        width: 40px;
+        height: 40px;
     }
     .footer-nav a {
         font-size: 14px;
     }
     .date-item {
-        width: 40px;
+        width: 35px;
         margin: 0 2px;
         padding: 3px;
     }
