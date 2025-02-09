@@ -306,10 +306,10 @@ def get_display_matches():
     return matches
 
 # =======================
-# 7. Планировщик обновления (каждые 15 минут)
+# 7. Планировщик обновления (каждые 1 минут)
 # =======================
 scheduler = BackgroundScheduler()
-scheduler.add_job(process_live_matches, 'interval', minutes=15)
+scheduler.add_job(process_live_matches, 'interval', minutes=1)
 
 # =======================
 # 8. Создание FastAPI приложения, подключение шаблонов и статики
