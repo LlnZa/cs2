@@ -3,6 +3,7 @@ body {
     margin: 20px;
     background: #fafafa;
     color: #333;
+    padding-bottom: 120px; /* чтобы нижний контент не скрывался фиксированными элементами */
 }
 
 h1 {
@@ -28,28 +29,117 @@ h1 {
 .group-date {
     font-size: 20px;
     font-weight: bold;
-    margin: 30px 0 10px 0;
+    margin: 20px 0 10px 0;
     text-align: center;
 }
 
-.match-header, .match-teams, .match-schedule {
+.match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.match-teams {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     margin-bottom: 10px;
 }
 
 .match-teams img {
-    width: 60px;
-    height: 60px;
+    width: 80px;  /* увеличена область логотипа */
+    height: 80px;
     object-fit: contain;
     margin: 0 10px;
     border-radius: 50%;
 }
 
-/* Горизонтальный скроллер дат и футер описаны в index.html (с дополнительными встроенными стилями) */
+.match-teams .score {
+    margin: 0 15px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.match-schedule {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+/* Горизонтальный скроллер дат */
+#date-scroller {
+    position: fixed;
+    bottom: 60px; /* выше футера */
+    left: 0;
+    right: 0;
+    background: #e8e8e8;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 5px 0; /* уменьшенные отступы */
+    z-index: 10;
+}
+
+.dates {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.date-item {
+    width: 50px;  /* уменьшенная ширина */
+    flex-shrink: 0;
+    text-align: center;
+    margin: 0 3px; /* уменьшенные промежутки */
+    padding: 5px;
+    background: #f8f8f8;
+    border-radius: 5px;
+}
+
+.date-item.active {
+    background: #ffcc00;
+    color: #000;
+}
+
+.day-number {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.day-name {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Фиксированный футер с навигацией */
+.footer-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f0f0f0;
+    border-top: 1px solid #ccc;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    z-index: 20;
+}
+
+.footer-nav a {
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #333;
+    text-decoration: none;
+}
 
 /* Адаптация под мобильные устройства */
 @media (max-width: 600px) {
     body {
         margin: 10px;
+        padding-bottom: 140px;
     }
     .match-container {
         padding: 10px;
@@ -60,6 +150,18 @@ h1 {
     }
     .match-header, .match-teams, .match-schedule {
         font-size: 14px;
+    }
+    .match-teams .score {
+        font-size: 16px;
+    }
+    .footer-nav a {
+        font-size: 14px;
+    }
+    /* Уменьшаем размеры блока дат, если они не помещаются */
+    .date-item {
+        width: 45px;
+        margin: 0 2px;
+        padding: 4px;
     }
 }
 
@@ -75,5 +177,18 @@ h1 {
     .match-container {
         border: 1px solid #444;
         background: #2e2e2e;
+    }
+    #date-scroller {
+        background: #2e2e2e;
+    }
+    .date-item {
+        background: #3e3e3e;
+    }
+    .footer-nav {
+        background: #2e2e2e;
+        border-top: 1px solid #444;
+    }
+    .footer-nav a {
+        color: #e0e0e0;
     }
 }
