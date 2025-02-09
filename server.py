@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import requests
 from datetime import datetime, timedelta
@@ -33,6 +34,20 @@ def get_db_connection():
         )
     return conn
 
+def execute_query(query, params):
+    """Вспомогательная функция для выполнения запроса с параметрами."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(query, params)
+        conn.commit()
+    except Exception as e:
+        print(f"Ошибка выполнения запроса: {e}")
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+
 # =======================
 # 2. Настройки API
 # =======================
@@ -64,6 +79,7 @@ def parse_datetime(dt_str):
 # =======================
 # 3. Функции вставки данных в таблицы
 # =======================
+
 def insert_team(team):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -251,7 +267,66 @@ def process_all_matches():
     process_past_matches()
 
 # =======================
-# 5. Генерация списка дат (за последние 10 дней)
+# 5. Функция загрузки рейтингов с GitHub и сохранения в таблицу ratings
+# =======================
+def save_ratings():
+    print("🔄 Загружаем рейтинги с GitHub...")
+    rating_api_url = "https://api.github.com/repos/ValveSoftware/counter-strike_regional_standings/contents/live/2025"
+    response = requests.get(rating_api_url)
+    if response.status_code != 200:
+        print(f"❌ Ошибка получения списка рейтингов: {response.status_code}")
+        return
+    files = response.json()
+    rating_files = [f for f in files if re.match(r"standings_global_\d{4}_\d{2}_\d{2}\.md", f.get("name", ""))]
+    if not rating_files:
+        print("❌ Файлы рейтингов не найдены.")
+        return
+    rating_files.sort(key=lambda f: datetime.strptime(re.search(r"\d{4}_\d{2}_\d{2}", f["name"]).group(), "%Y_%m_%d"), reverse=True)
+    latest_file = rating_files[0]
+    download_url = latest_file.get("download_url")
+    if not download_url:
+        print("❌ Нет ссылки для скачивания рейтинга.")
+        return
+    rating_response = requests.get(download_url)
+    if rating_response.status_code != 200:
+        print(f"❌ Ошибка скачивания рейтингов: {rating_response.status_code}")
+        return
+    content = rating_response.text
+    lines = content.splitlines()
+    if len(lines) < 3:
+        print("❌ Недостаточно данных в рейтинговом файле.")
+        return
+    ratings_data = []
+    # Пропускаем заголовок и разделительную строку
+    for line in lines[2:]:
+        if not line.strip() or not line.startswith("|"):
+            continue
+        parts = [p.strip() for p in line.split("|") if p.strip()]
+        if len(parts) < 3:
+            continue
+        try:
+            standing = int(parts[0])
+            points = int(parts[1])
+        except Exception:
+            continue
+        team_name = parts[2]
+        roster = parts[3] if len(parts) > 3 else ""
+        ratings_data.append((team_name, standing, points, roster))
+    for team_name, standing, points, roster in ratings_data:
+        query = """
+            INSERT INTO ratings (team_name, rank, points, roster)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (team_name) DO UPDATE
+            SET rank = EXCLUDED.rank,
+                points = EXCLUDED.points,
+                roster = EXCLUDED.roster,
+                last_updated = NOW();
+        """
+        execute_query(query, (team_name, standing, points, roster))
+    print("✅ Рейтинги сохранены.")
+
+# =======================
+# 6. Генерация списка дат (за последние 10 дней)
 def generate_date_list():
     today = datetime.today().date()
     date_list = []
@@ -277,7 +352,7 @@ def generate_date_list():
     return date_list
 
 # =======================
-# 6. Получение матчей для отображения (группировка по дате)
+# 7. Получение матчей для отображения (группировка по дате)
 def get_display_matches_grouped(selected_date: str = None):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -315,7 +390,6 @@ def get_display_matches_grouped(selected_date: str = None):
     """
     params = []
     if not selected_date:
-        # По умолчанию выбираем текущую дату
         selected_date = datetime.today().strftime("%Y-%m-%d")
     query += " AND (CASE WHEN LOWER(m.status) = 'running' THEN to_char(current_date, 'YYYY-MM-DD') ELSE to_char(m.scheduled_at, 'YYYY-MM-DD') END) = %s"
     params.append(selected_date)
@@ -339,12 +413,13 @@ def get_display_matches_grouped(selected_date: str = None):
     return sorted_grouped
 
 # =======================
-# 7. Планировщик обновления (каждые 1 минут)
+# 8. Планировщик обновления (каждые 1 минут для матчей, каждые 15 минут для рейтингов)
 scheduler = BackgroundScheduler()
 scheduler.add_job(process_all_matches, 'interval', minutes=1)
+scheduler.add_job(save_ratings, 'interval', minutes=15)
 
 # =======================
-# 8. Создание FastAPI приложения, подключение статики и шаблонов
+# 9. Создание FastAPI приложения, подключение статики и шаблонов
 # =======================
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -352,9 +427,10 @@ templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 def startup_event():
-    print("Запуск планировщика обновления матчей...")
+    print("Запуск планировщика обновления матчей и рейтингов...")
     scheduler.start()
     process_all_matches()
+    save_ratings()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -365,7 +441,6 @@ def shutdown_event():
 def read_root(request: Request, date: str = None):
     grouped_matches = get_display_matches_grouped(selected_date=date)
     date_list = generate_date_list()
-    # Если дата не передана, по умолчанию устанавливаем текущую дату
     if not date:
         date = datetime.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("index.html", {
@@ -374,6 +449,27 @@ def read_root(request: Request, date: str = None):
         "date_list": date_list,
         "selected_date": date
     })
+
+@app.get("/rating", response_class=HTMLResponse)
+def rating_page(request: Request):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        SELECT 
+            r.team_name,
+            r.rank,
+            r.points,
+            r.roster,
+            t.image_url AS team_logo
+        FROM ratings r
+        LEFT JOIN teams t ON r.team_name = t.name
+        ORDER BY r.points DESC;
+    """
+    cur.execute(query)
+    ratings = cur.fetchall()
+    cur.close()
+    conn.close()
+    return templates.TemplateResponse("rating.html", {"request": request, "ratings": ratings})
 
 if __name__ == "__main__":
     import uvicorn
