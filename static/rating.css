@@ -1,0 +1,80 @@
+/* rating.css */
+
+/* Основной контейнер рейтинга */
+.rating-container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: var(--rating-bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Таблица рейтинга */
+.rating-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+
+.rating-table th,
+.rating-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.rating-table th {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  font-weight: bold;
+}
+
+.rating-table td {
+  color: var(--text-color);
+}
+
+/* Логотип команды в таблице */
+.team-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 600px) {
+  .rating-container {
+    padding: 10px;
+  }
+  .rating-table th,
+  .rating-table td {
+    padding: 8px 6px;
+    font-size: 14px;
+  }
+  .team-logo {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* Переменные для светлого режима */
+:root {
+  --rating-bg: #ffffff;
+  --header-bg: #f0f0f0;
+  --header-text: #333333;
+  --text-color: #333333;
+  --border-color: #dddddd;
+}
+
+/* Переменные для тёмного режима */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rating-bg: #2e2e2e;
+    --header-bg: #444444;
+    --header-text: #e0e0e0;
+    --text-color: #e0e0e0;
+    --border-color: #555555;
+  }
+}
