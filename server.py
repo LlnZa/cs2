@@ -14,11 +14,6 @@ from fastapi.staticfiles import StaticFiles
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# В FastAPI, на старте приложения:
-@app.on_event("startup")
-async def on_startup():
-    # Запускаем бота в фоне
-    asyncio.create_task(start_bot())
 
 # =======================
 # 1. Настройки подключения к базе данных
