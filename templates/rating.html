@@ -3,38 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Рейтинг команд</title>
+  <!-- Подключаем общие стили -->
   <link rel="stylesheet" href="/static/style.css">
-  <style>
-    /* Дополнительные стили для страницы рейтинга */
-    .rating-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px auto;
-      max-width: 800px;
-    }
-    .rating-table th, .rating-table td {
-      padding: 10px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    .rating-table th {
-      background-color: #f0f0f0;
-      font-weight: bold;
-    }
-    .team-logo {
-      width: 40px;
-      height: 40px;
-      object-fit: contain;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
-    .rating-container {
-      text-align: center;
-    }
-    h1 {
-      margin-top: 20px;
-    }
-  </style>
+  <!-- Подключаем стили для страницы рейтинга -->
+  <link rel="stylesheet" href="/static/rating.css">
 </head>
 <body>
   <h1>Рейтинг команд</h1>
@@ -70,7 +42,7 @@
     {% endif %}
   </div>
 
-  <!-- Фиксированный футер с навигацией, такой же как и на главной странице -->
+  <!-- Фиксированный футер с навигацией (тот же, что и на остальных страницах) -->
   <div class="footer-nav">
     <a href="/events">События</a>
     <a href="/">Матчи</a>
