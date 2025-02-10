@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 import json
@@ -13,6 +14,31 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from apscheduler.schedulers.background import BackgroundScheduler
+
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+
+TOKEN = os.getenv("7938904024:AAGVhZuLkAtEUDyE9k7lyi3Jf10b2Dt1OHc")  
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="Открыть WebApp", web_app=types.WebAppInfo(url="https://ваш-домен.onrender.com"))]
+    ])
+    await message.answer("Нажми кнопку ниже, чтобы открыть WebApp!", reply_markup=keyboard)
+
+async def start_bot():
+    print("Бот запущен!")
+    await dp.start_polling(bot)
+
+# В FastAPI, на старте приложения:
+@app.on_event("startup")
+async def on_startup():
+    # Запускаем бота в фоне
+    asyncio.create_task(start_bot())
 
 # =======================
 # 1. Настройки подключения к базе данных
