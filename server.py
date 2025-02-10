@@ -273,26 +273,37 @@ def process_all_matches():
 def save_ratings():
     print("🔄 Загружаем рейтинги с GitHub...")
     rating_api_url = "https://api.github.com/repos/ValveSoftware/counter-strike_regional_standings/contents/live/2025"
-    # Добавляем заголовки, необходимые GitHub API
+    
+    # Заголовки для GitHub API
     headers = {
         "User-Agent": "cs2-rating-fetcher",
         "Accept": "application/vnd.github.v3+json"
     }
+    # Если у вас есть токен для GitHub (например, для увеличения лимита), добавляем его
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
+    
     response = requests.get(rating_api_url, headers=headers)
     if response.status_code != 200:
         print(f"❌ Ошибка получения списка рейтингов: {response.status_code}")
         return
     files = response.json()
+    
+    # Выбираем файлы, имя которых соответствует шаблону, например: standings_global_2025_02_08.md
     rating_files = [f for f in files if re.match(r"standings_global_\d{4}_\d{2}_\d{2}\.md", f.get("name", ""))]
     if not rating_files:
         print("❌ Файлы рейтингов не найдены.")
         return
+
+    # Сортируем файлы по дате (от новых к старым)
     rating_files.sort(key=lambda f: datetime.strptime(re.search(r"\d{4}_\d{2}_\d{2}", f["name"]).group(), "%Y_%m_%d"), reverse=True)
     latest_file = rating_files[0]
     download_url = latest_file.get("download_url")
     if not download_url:
         print("❌ Нет ссылки для скачивания рейтинга.")
         return
+    
     rating_response = requests.get(download_url, headers=headers)
     if rating_response.status_code != 200:
         print(f"❌ Ошибка скачивания рейтингов: {rating_response.status_code}")
@@ -302,8 +313,9 @@ def save_ratings():
     if len(lines) < 3:
         print("❌ Недостаточно данных в рейтинговом файле.")
         return
+
     ratings_data = []
-    # Пропускаем заголовок и разделительную строку
+    # Пропускаем заголовок и разделительную строку (первые 2 строки)
     for line in lines[2:]:
         if not line.strip() or not line.startswith("|"):
             continue
@@ -318,6 +330,7 @@ def save_ratings():
         team_name = parts[2]
         roster = parts[3] if len(parts) > 3 else ""
         ratings_data.append((team_name, standing, points, roster))
+    
     for team_name, standing, points, roster in ratings_data:
         query = """
             INSERT INTO ratings (team_name, rank, points, roster, last_updated)
